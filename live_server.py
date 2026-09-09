@@ -20,7 +20,7 @@ LIVE_DATA_FILE = os.path.join(DATA_DIR, "live_student_data.csv")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Stores the latest information of every logged-in student
+# Stores latest information of every student
 students = {}
 
 # Thread safety for multiple students
@@ -126,7 +126,9 @@ def student_join():
                 "message": "email is required"
             }), 400
 
-        # Create student record
+        now = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
 
         student_data = {
 
@@ -155,15 +157,12 @@ def student_join():
 
             "stability": "UNKNOWN",
 
-            "joined_at":
-                datetime.now().strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+            # Nudge information
+            "nudge": None,
 
-            "last_update":
-                datetime.now().strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
+            "joined_at": now,
+
+            "last_update": now
         }
 
         with data_lock:
@@ -186,7 +185,6 @@ def student_join():
         return jsonify({
 
             "status": "error",
-
             "message": str(e)
 
         }), 500
@@ -253,29 +251,58 @@ def student_update():
                             ""
                         ),
 
+                    "attention_score":
+                        0.0,
+
+                    "attention_status":
+                        "WAITING",
+
+                    "predicted_class":
+                        -1,
+
                     "attendance":
                         "Present",
 
-                    "alerts": 0,
+                    "alerts":
+                        0,
 
-                    "distractions": 0,
+                    "recommendation":
+                        "Waiting for attention analysis...",
 
-                    "transitions": 0,
+                    "distractions":
+                        0,
+
+                    "transitions":
+                        0,
 
                     "stability":
-                        "UNKNOWN"
+                        "UNKNOWN",
+
+                    "nudge":
+                        None,
+
+                    "joined_at":
+                        datetime.now().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+
+                    "last_update":
+                        datetime.now().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        )
                 }
 
             student = students[student_id]
 
-            # Update only values supplied
-            # by the student's application
+            # Update only supplied values
 
             if "student_name" in data:
+
                 student["student_name"] = \
                     data["student_name"]
 
             if "email" in data:
+
                 student["email"] = \
                     data["email"]
 
@@ -385,26 +412,220 @@ def student_update():
         return jsonify({
 
             "status": "error",
-
             "message": str(e)
 
         }), 500
 
 
 # ============================================================
+# SEND NUDGE TO STUDENT
+# ============================================================
+
+@app.route("/student/nudge", methods=["POST"])
+def student_nudge():
+
+    try:
+
+        data = request.get_json()
+
+        if not data:
+
+            return jsonify({
+
+                "status": "error",
+
+                "message":
+                    "No nudge data received"
+
+            }), 400
+
+        student_id = str(
+            data.get("student_id", "")
+        ).strip()
+
+        if not student_id:
+
+            return jsonify({
+
+                "status": "error",
+
+                "message":
+                    "student_id is required"
+
+            }), 400
+
+        message = str(
+            data.get(
+                "message",
+                "Your instructor suggests focusing on the class."
+            )
+        ).strip()
+
+        with data_lock:
+
+            if student_id not in students:
+
+                return jsonify({
+
+                    "status": "error",
+
+                    "message":
+                        "Student not found"
+
+                }), 404
+
+            students[student_id]["nudge"] = {
+
+                "message": message,
+
+                "timestamp":
+                    datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+
+                "read": False
+            }
+
+        return jsonify({
+
+            "status": "success",
+
+            "message":
+                "Nudge sent successfully",
+
+            "nudge": {
+
+                "student_id":
+                    student_id,
+
+                "message":
+                    message
+            }
+
+        })
+
+    except Exception as e:
+
+        return jsonify({
+
+            "status": "error",
+
+            "message":
+                str(e)
+
+        }), 500
+
+
+# ============================================================
+# GET STUDENT NUDGE
+# ============================================================
+
+@app.route(
+    "/student/nudge/<student_id>",
+    methods=["GET"]
+)
+def get_student_nudge(student_id):
+
+    with data_lock:
+
+        student = students.get(student_id)
+
+        if student is None:
+
+            return jsonify({
+
+                "status": "error",
+
+                "message":
+                    "Student not found"
+
+            }), 404
+
+        nudge = student.get("nudge")
+
+        if not nudge:
+
+            return jsonify({
+
+                "status": "success",
+
+                "has_nudge": False,
+
+                "nudge": None
+
+            })
+
+        return jsonify({
+
+            "status": "success",
+
+            "has_nudge": True,
+
+            "nudge": nudge
+
+        })
+
+
+# ============================================================
+# MARK NUDGE AS READ
+# ============================================================
+
+@app.route(
+    "/student/nudge/<student_id>/read",
+    methods=["POST"]
+)
+def mark_nudge_read(student_id):
+
+    with data_lock:
+
+        student = students.get(student_id)
+
+        if student is None:
+
+            return jsonify({
+
+                "status": "error",
+
+                "message":
+                    "Student not found"
+
+            }), 404
+
+        student["nudge"] = None
+
+    return jsonify({
+
+        "status": "success",
+
+        "message":
+            "Nudge marked as read"
+
+    })
+
+
+# ============================================================
 # GET LIVE ATTENTION HISTORY
 # ============================================================
 
-@app.route("/admin/history/<student_id>", methods=["GET"])
+@app.route(
+    "/admin/history/<student_id>",
+    methods=["GET"]
+)
 def get_history(student_id):
 
     history = []
 
     if not os.path.exists(LIVE_DATA_FILE):
+
         return jsonify({
+
             "status": "success",
-            "student_id": student_id,
+
+            "student_id":
+                student_id,
+
             "history": []
+
         })
 
     try:
@@ -421,7 +642,10 @@ def get_history(student_id):
             for row in reader:
 
                 if str(
-                    row.get("student_id", "")
+                    row.get(
+                        "student_id",
+                        ""
+                    )
                 ).strip() == student_id:
 
                     history.append(row)
@@ -447,7 +671,8 @@ def get_history(student_id):
 
             "status": "error",
 
-            "message": str(e)
+            "message":
+                str(e)
 
         }), 500
 
@@ -456,17 +681,28 @@ def get_history(student_id):
 # ATTENTION TRANSITION ANALYSIS
 # ============================================================
 
-@app.route("/admin/transitions/<student_id>", methods=["GET"])
+@app.route(
+    "/admin/transitions/<student_id>",
+    methods=["GET"]
+)
 def get_transitions(student_id):
 
     history = []
 
     if not os.path.exists(LIVE_DATA_FILE):
+
         return jsonify({
+
             "status": "success",
-            "student_id": student_id,
-            "total_transitions": 0,
+
+            "student_id":
+                student_id,
+
+            "total_transitions":
+                0,
+
             "transitions": {}
+
         })
 
     try:
@@ -483,7 +719,10 @@ def get_transitions(student_id):
             for row in reader:
 
                 if str(
-                    row.get("student_id", "")
+                    row.get(
+                        "student_id",
+                        ""
+                    )
                 ).strip() == student_id:
 
                     status = str(
@@ -548,39 +787,55 @@ def get_transitions(student_id):
 
             "status": "error",
 
-            "message": str(e)
+            "message":
+                str(e)
 
         }), 500
+
 
 # ============================================================
 # GET CURRENT ACTIVE STUDENT
 # ============================================================
 
-@app.route("/student/active", methods=["GET"])
+@app.route(
+    "/student/active",
+    methods=["GET"]
+)
 def get_active_student():
 
     with data_lock:
 
         if not students:
+
             return jsonify({
+
                 "status": "success",
+
                 "active": False,
+
                 "student": None
+
             })
 
-        # Get the most recently joined student
         active_student = max(
+
             students.values(),
-            key=lambda student: student.get(
-                "joined_at",
-                ""
-            )
+
+            key=lambda student:
+                student.get(
+                    "joined_at",
+                    ""
+                )
         )
 
     return jsonify({
+
         "status": "success",
+
         "active": True,
+
         "student": {
+
             "student_id":
                 active_student["student_id"],
 
@@ -589,7 +844,9 @@ def get_active_student():
 
             "email":
                 active_student["email"]
+
         }
+
     })
 
 
@@ -597,7 +854,10 @@ def get_active_student():
 # GET ALL STUDENTS
 # ============================================================
 
-@app.route("/admin/students", methods=["GET"])
+@app.route(
+    "/admin/students",
+    methods=["GET"]
+)
 def get_students():
 
     with data_lock:
@@ -623,7 +883,10 @@ def get_students():
 # GET ONE STUDENT
 # ============================================================
 
-@app.route("/admin/student/<student_id>", methods=["GET"])
+@app.route(
+    "/admin/student/<student_id>",
+    methods=["GET"]
+)
 def get_student(student_id):
 
     with data_lock:
@@ -647,7 +910,8 @@ def get_student(student_id):
 
         "status": "success",
 
-        "student": student
+        "student":
+            student
 
     })
 
@@ -656,7 +920,10 @@ def get_student(student_id):
 # ADMIN DASHBOARD SUMMARY
 # ============================================================
 
-@app.route("/admin/dashboard", methods=["GET"])
+@app.route(
+    "/admin/dashboard",
+    methods=["GET"]
+)
 def dashboard():
 
     with data_lock:
@@ -839,7 +1106,10 @@ def dashboard():
 # STUDENT LEAVES CLASS
 # ============================================================
 
-@app.route("/student/leave", methods=["POST"])
+@app.route(
+    "/student/leave",
+    methods=["POST"]
+)
 def student_leave():
 
     try:
@@ -895,7 +1165,8 @@ def student_leave():
 
             "status": "error",
 
-            "message": str(e)
+            "message":
+                str(e)
 
         }), 500
 
@@ -911,22 +1182,38 @@ if __name__ == "__main__":
     print(" STUDENT ATTENTION LIVE SERVER")
     print("==========================================")
     print()
+
     print("Server running on:")
-    print(f"http://localhost:{PORT}")
+
+    print(
+        f"http://localhost:{PORT}"
+    )
+
     print()
+
     print("Available endpoints:")
     print()
+
     print("GET  /")
     print("POST /student/join")
     print("POST /student/update")
+    print("POST /student/nudge")
+    print("GET  /student/nudge/<student_id>")
+    print("POST /student/nudge/<student_id>/read")
     print("POST /student/leave")
     print("GET  /admin/students")
     print("GET  /admin/student/<student_id>")
     print("GET  /admin/dashboard")
+    print("GET  /admin/history/<student_id>")
+    print("GET  /admin/transitions/<student_id>")
+
     print()
+
     print("Ready for multiple students.")
+
     print("==========================================")
     print()
+
 
     app.run(
         host=HOST,
