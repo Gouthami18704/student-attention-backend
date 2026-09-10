@@ -5,25 +5,42 @@ import csv
 import os
 import threading
 
+
 app = Flask(__name__)
+
 CORS(app)
+
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
 HOST = "0.0.0.0"
-PORT = int(os.environ.get("PORT", 5000))
+
+PORT = int(
+    os.environ.get(
+        "PORT",
+        5000
+    )
+)
+
 
 DATA_DIR = "WACV data"
-LIVE_DATA_FILE = os.path.join(DATA_DIR, "live_student_data.csv")
 
-os.makedirs(DATA_DIR, exist_ok=True)
+LIVE_DATA_FILE = os.path.join(
+    DATA_DIR,
+    "live_student_data.csv"
+)
 
-# Stores latest information of every student
+
+os.makedirs(
+    DATA_DIR,
+    exist_ok=True
+)
+
+
 students = {}
 
-# Thread safety for multiple students
 data_lock = threading.Lock()
 
 
@@ -33,7 +50,9 @@ data_lock = threading.Lock()
 
 def initialize_csv():
 
-    if not os.path.exists(LIVE_DATA_FILE):
+    if not os.path.exists(
+        LIVE_DATA_FILE
+    ):
 
         with open(
             LIVE_DATA_FILE,
@@ -54,10 +73,13 @@ def initialize_csv():
                 "predicted_class",
                 "attendance",
                 "alerts",
+                "alert_message",
                 "recommendation",
                 "distractions",
                 "transitions",
-                "stability"
+                "stability",
+                "face_detected",
+                "looking_away"
             ])
 
 
@@ -65,25 +87,39 @@ initialize_csv()
 
 
 # ============================================================
-# HOME / SERVER TEST
+# HOME
 # ============================================================
 
-@app.route("/", methods=["GET"])
+@app.route(
+    "/",
+    methods=["GET"]
+)
 def home():
 
     return jsonify({
-        "status": "success",
-        "message": "Student Attention Live Server is running",
-        "server": "Flask",
-        "port": PORT
+
+        "status":
+            "success",
+
+        "message":
+            "Student Attention Live Server is running",
+
+        "server":
+            "Flask",
+
+        "port":
+            PORT
     })
 
 
 # ============================================================
-# STUDENT LOGIN / JOIN CLASS
+# STUDENT JOIN
 # ============================================================
 
-@app.route("/student/join", methods=["POST"])
+@app.route(
+    "/student/join",
+    methods=["POST"]
+)
 def student_join():
 
     try:
@@ -91,150 +127,252 @@ def student_join():
         data = request.get_json()
 
         if not data:
-            return jsonify({
-                "status": "error",
-                "message": "No student data received"
-            }), 400
-
-        student_id = str(
-            data.get("student_id", "")
-        ).strip()
-
-        student_name = str(
-            data.get("student_name", "")
-        ).strip()
-
-        email = str(
-            data.get("email", "")
-        ).strip()
-
-        if not student_id:
-            return jsonify({
-                "status": "error",
-                "message": "student_id is required"
-            }), 400
-
-        if not student_name:
-            return jsonify({
-                "status": "error",
-                "message": "student_name is required"
-            }), 400
-
-        if not email:
-            return jsonify({
-                "status": "error",
-                "message": "email is required"
-            }), 400
-
-        now = datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-
-        student_data = {
-
-            "student_id": student_id,
-
-            "student_name": student_name,
-
-            "email": email,
-
-            "attention_score": 0.0,
-
-            "attention_status": "WAITING",
-
-            "predicted_class": -1,
-
-            "attendance": "Present",
-
-            "alerts": 0,
-
-            "recommendation":
-                "Waiting for attention analysis...",
-
-            "distractions": 0,
-
-            "transitions": 0,
-
-            "stability": "UNKNOWN",
-
-            # Nudge information
-            "nudge": None,
-
-            "joined_at": now,
-
-            "last_update": now
-        }
-
-        with data_lock:
-
-            students[student_id] = student_data
-
-        return jsonify({
-
-            "status": "success",
-
-            "message":
-                "Student joined the online class",
-
-            "student": student_data
-
-        })
-
-    except Exception as e:
-
-        return jsonify({
-
-            "status": "error",
-            "message": str(e)
-
-        }), 500
-
-
-# ============================================================
-# RECEIVE LIVE ATTENTION DATA
-# ============================================================
-
-@app.route("/student/update", methods=["POST"])
-def student_update():
-
-    try:
-
-        data = request.get_json()
-
-        if not data:
 
             return jsonify({
 
-                "status": "error",
+                "status":
+                    "error",
 
                 "message":
-                    "No attention data received"
+                    "No student data received"
 
             }), 400
 
+
         student_id = str(
-            data.get("student_id", "")
+            data.get(
+                "student_id",
+                ""
+            )
         ).strip()
+
+
+        student_name = str(
+            data.get(
+                "student_name",
+                ""
+            )
+        ).strip()
+
+
+        email = str(
+            data.get(
+                "email",
+                ""
+            )
+        ).strip()
+
 
         if not student_id:
 
             return jsonify({
 
-                "status": "error",
+                "status":
+                    "error",
 
                 "message":
                     "student_id is required"
 
             }), 400
 
+
+        if not student_name:
+
+            return jsonify({
+
+                "status":
+                    "error",
+
+                "message":
+                    "student_name is required"
+
+            }), 400
+
+
+        if not email:
+
+            return jsonify({
+
+                "status":
+                    "error",
+
+                "message":
+                    "email is required"
+
+            }), 400
+
+
+        now = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+
+        student_data = {
+
+            "student_id":
+                student_id,
+
+            "student_name":
+                student_name,
+
+            "email":
+                email,
+
+            "attention_score":
+                0.0,
+
+            "attention_status":
+                "WAITING",
+
+            "predicted_class":
+                -1,
+
+            "attendance":
+                "Present",
+
+            "alerts":
+                0,
+
+            "alert_message":
+                "",
+
+            "latest_alert":
+                None,
+
+            "alert_messages":
+                [],
+
+            "recommendation":
+                "Waiting for attention analysis...",
+
+            "distractions":
+                0,
+
+            "transitions":
+                0,
+
+            "stability":
+                "UNKNOWN",
+
+            "face_detected":
+                True,
+
+            "looking_away":
+                False,
+
+            "drowsiness_detected":
+                False,
+
+            "nudge":
+                None,
+
+            "joined_at":
+                now,
+
+            "last_update":
+                now
+        }
+
+
         with data_lock:
 
-            # If student does not exist,
-            # create a basic record
+            students[
+                student_id
+            ] = student_data
+
+
+        return jsonify({
+
+            "status":
+                "success",
+
+            "message":
+                "Student joined the online class",
+
+            "student":
+                student_data
+
+        })
+
+
+    except Exception as e:
+
+        return jsonify({
+
+            "status":
+                "error",
+
+            "message":
+                str(e)
+
+        }), 500
+
+
+# ============================================================
+# STUDENT UPDATE
+# ============================================================
+
+@app.route(
+    "/student/update",
+    methods=["POST"]
+)
+def student_update():
+
+    try:
+
+        data = request.get_json()
+
+
+        if not data:
+
+            return jsonify({
+
+                "status":
+                    "error",
+
+                "message":
+                    "No attention data received"
+
+            }), 400
+
+
+        student_id = str(
+            data.get(
+                "student_id",
+                ""
+            )
+        ).strip()
+
+
+        if not student_id:
+
+            return jsonify({
+
+                "status":
+                    "error",
+
+                "message":
+                    "student_id is required"
+
+            }), 400
+
+
+        now = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+
+        with data_lock:
+
+            # ------------------------------------------------
+            # CREATE STUDENT IF NOT FOUND
+            # ------------------------------------------------
 
             if student_id not in students:
 
-                students[student_id] = {
+                students[
+                    student_id
+                ] = {
 
                     "student_id":
                         student_id,
@@ -266,6 +404,15 @@ def student_update():
                     "alerts":
                         0,
 
+                    "alert_message":
+                        "",
+
+                    "latest_alert":
+                        None,
+
+                    "alert_messages":
+                        [],
+
                     "recommendation":
                         "Waiting for attention analysis...",
 
@@ -278,85 +425,354 @@ def student_update():
                     "stability":
                         "UNKNOWN",
 
+                    "face_detected":
+                        True,
+
+                    "looking_away":
+                        False,
+
+                    "drowsiness_detected":
+                        False,
+
                     "nudge":
                         None,
 
                     "joined_at":
-                        datetime.now().strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        ),
+                        now,
 
                     "last_update":
-                        datetime.now().strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        )
+                        now
                 }
 
-            student = students[student_id]
 
-            # Update only supplied values
+            student = students[
+                student_id
+            ]
+
+
+            # =================================================
+            # BASIC INFORMATION
+            # =================================================
 
             if "student_name" in data:
 
-                student["student_name"] = \
-                    data["student_name"]
+                student[
+                    "student_name"
+                ] = str(
+                    data[
+                        "student_name"
+                    ]
+                )
+
 
             if "email" in data:
 
-                student["email"] = \
-                    data["email"]
+                student[
+                    "email"
+                ] = str(
+                    data[
+                        "email"
+                    ]
+                )
+
+
+            # =================================================
+            # ATTENTION SCORE
+            # =================================================
 
             if "attention_score" in data:
 
-                student["attention_score"] = float(
-                    data["attention_score"]
+                student[
+                    "attention_score"
+                ] = float(
+                    data[
+                        "attention_score"
+                    ]
                 )
+
+
+            # =================================================
+            # ATTENTION STATUS
+            # =================================================
+
+            # Accept both names so older bridge versions
+            # also continue working.
 
             if "attention_status" in data:
 
-                student["attention_status"] = \
-                    data["attention_status"]
+                student[
+                    "attention_status"
+                ] = str(
+                    data[
+                        "attention_status"
+                    ]
+                )
+
+            elif "status" in data:
+
+                student[
+                    "attention_status"
+                ] = str(
+                    data[
+                        "status"
+                    ]
+                )
+
+
+            # =================================================
+            # PREDICTED CLASS
+            # =================================================
 
             if "predicted_class" in data:
 
-                student["predicted_class"] = int(
-                    data["predicted_class"]
+                student[
+                    "predicted_class"
+                ] = int(
+                    data[
+                        "predicted_class"
+                    ]
                 )
+
+
+            # =================================================
+            # ALERTS
+            # =================================================
+
+            incoming_alerts = data.get(
+                "alert_messages",
+                []
+            )
+
+
+            if not isinstance(
+                incoming_alerts,
+                list
+            ):
+
+                incoming_alerts = []
+
+
+            incoming_alerts = [
+
+                str(alert).strip()
+
+                for alert in incoming_alerts
+
+                if str(alert).strip()
+            ]
+
+
+            latest_alert = data.get(
+                "latest_alert",
+                None
+            )
+
+
+            if latest_alert:
+
+                latest_alert = str(
+                    latest_alert
+                ).strip()
+
+
+            # ------------------------------------------------
+            # Store the latest alert
+            # ------------------------------------------------
+
+            if latest_alert:
+
+                student[
+                    "latest_alert"
+                ] = latest_alert
+
+                student[
+                    "alert_message"
+                ] = latest_alert
+
+
+            elif incoming_alerts:
+
+                student[
+                    "latest_alert"
+                ] = incoming_alerts[-1]
+
+                student[
+                    "alert_message"
+                ] = incoming_alerts[-1]
+
+
+            # ------------------------------------------------
+            # Store alert messages
+            # ------------------------------------------------
+
+            if incoming_alerts:
+
+                existing_alerts = student.get(
+                    "alert_messages",
+                    []
+                )
+
+                if not isinstance(
+                    existing_alerts,
+                    list
+                ):
+
+                    existing_alerts = []
+
+
+                for alert in incoming_alerts:
+
+                    if alert not in existing_alerts:
+
+                        existing_alerts.append(
+                            alert
+                        )
+
+
+                # Keep only recent unique alert messages.
+                student[
+                    "alert_messages"
+                ] = existing_alerts[-20:]
+
+
+            # ------------------------------------------------
+            # TOTAL ALERT COUNT
+            # ------------------------------------------------
 
             if "alerts" in data:
 
-                student["alerts"] = int(
-                    data["alerts"]
-                )
+                try:
+
+                    incoming_alert_count = int(
+                        data[
+                            "alerts"
+                        ]
+                    )
+
+                except Exception:
+
+                    incoming_alert_count = 0
+
+            else:
+
+                incoming_alert_count = 0
+
+
+            # Do not reduce the existing total accidentally.
+            student[
+                "alerts"
+            ] = max(
+                int(
+                    student.get(
+                        "alerts",
+                        0
+                    )
+                ),
+                incoming_alert_count
+            )
+
+
+            # =================================================
+            # RECOMMENDATION
+            # =================================================
 
             if "recommendation" in data:
 
-                student["recommendation"] = \
-                    data["recommendation"]
+                student[
+                    "recommendation"
+                ] = str(
+                    data[
+                        "recommendation"
+                    ]
+                )
+
+
+            # =================================================
+            # ANALYTICS
+            # =================================================
 
             if "distractions" in data:
 
-                student["distractions"] = int(
-                    data["distractions"]
+                student[
+                    "distractions"
+                ] = int(
+                    data[
+                        "distractions"
+                    ]
                 )
+
 
             if "transitions" in data:
 
-                student["transitions"] = int(
-                    data["transitions"]
+                student[
+                    "transitions"
+                ] = int(
+                    data[
+                        "transitions"
+                    ]
                 )
+
 
             if "stability" in data:
 
-                student["stability"] = \
-                    data["stability"]
-
-            student["last_update"] = \
-                datetime.now().strftime(
-                    "%Y-%m-%d %H:%M:%S"
+                student[
+                    "stability"
+                ] = str(
+                    data[
+                        "stability"
+                    ]
                 )
 
-            # Save current information to CSV
+
+            # =================================================
+            # CAMERA / GAZE
+            # =================================================
+
+            if "face_detected" in data:
+
+                student[
+                    "face_detected"
+                ] = bool(
+                    data[
+                        "face_detected"
+                    ]
+                )
+
+
+            if "looking_away" in data:
+
+                student[
+                    "looking_away"
+                ] = bool(
+                    data[
+                        "looking_away"
+                    ]
+                )
+
+
+            if "drowsiness_detected" in data:
+
+                student[
+                    "drowsiness_detected"
+                ] = bool(
+                    data[
+                        "drowsiness_detected"
+                    ]
+                )
+
+
+            # =================================================
+            # LAST UPDATE
+            # =================================================
+
+            student[
+                "last_update"
+            ] = now
+
+
+            # =================================================
+            # CSV
+            # =================================================
 
             with open(
                 LIVE_DATA_FILE,
@@ -369,146 +785,92 @@ def student_update():
 
                 writer.writerow([
 
-                    student["last_update"],
+                    student[
+                        "last_update"
+                    ],
 
-                    student["student_id"],
+                    student[
+                        "student_id"
+                    ],
 
-                    student["student_name"],
+                    student[
+                        "student_name"
+                    ],
 
-                    student["email"],
+                    student[
+                        "email"
+                    ],
 
-                    student["attention_score"],
+                    student[
+                        "attention_score"
+                    ],
 
-                    student["attention_status"],
+                    student[
+                        "attention_status"
+                    ],
 
-                    student["predicted_class"],
+                    student[
+                        "predicted_class"
+                    ],
 
-                    student["attendance"],
+                    student[
+                        "attendance"
+                    ],
 
-                    student["alerts"],
+                    student[
+                        "alerts"
+                    ],
 
-                    student["recommendation"],
+                    student[
+                        "alert_message"
+                    ],
 
-                    student["distractions"],
+                    student[
+                        "recommendation"
+                    ],
 
-                    student["transitions"],
+                    student[
+                        "distractions"
+                    ],
 
-                    student["stability"]
+                    student[
+                        "transitions"
+                    ],
+
+                    student[
+                        "stability"
+                    ],
+
+                    student[
+                        "face_detected"
+                    ],
+
+                    student[
+                        "looking_away"
+                    ]
                 ])
+
 
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
             "message":
                 "Attention data updated",
 
-            "student": student
+            "student":
+                student
 
         })
+
 
     except Exception as e:
 
         return jsonify({
 
-            "status": "error",
-            "message": str(e)
-
-        }), 500
-
-
-# ============================================================
-# SEND NUDGE TO STUDENT
-# ============================================================
-
-@app.route("/student/nudge", methods=["POST"])
-def student_nudge():
-
-    try:
-
-        data = request.get_json()
-
-        if not data:
-
-            return jsonify({
-
-                "status": "error",
-
-                "message":
-                    "No nudge data received"
-
-            }), 400
-
-        student_id = str(
-            data.get("student_id", "")
-        ).strip()
-
-        if not student_id:
-
-            return jsonify({
-
-                "status": "error",
-
-                "message":
-                    "student_id is required"
-
-            }), 400
-
-        message = str(
-            data.get(
-                "message",
-                "Your instructor suggests focusing on the class."
-            )
-        ).strip()
-
-        with data_lock:
-
-            if student_id not in students:
-
-                return jsonify({
-
-                    "status": "error",
-
-                    "message":
-                        "Student not found"
-
-                }), 404
-
-            students[student_id]["nudge"] = {
-
-                "message": message,
-
-                "timestamp":
-                    datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
-
-                "read": False
-            }
-
-        return jsonify({
-
-            "status": "success",
-
-            "message":
-                "Nudge sent successfully",
-
-            "nudge": {
-
-                "student_id":
-                    student_id,
-
-                "message":
-                    message
-            }
-
-        })
-
-    except Exception as e:
-
-        return jsonify({
-
-            "status": "error",
+            "status":
+                "error",
 
             "message":
                 str(e)
@@ -517,7 +879,122 @@ def student_nudge():
 
 
 # ============================================================
-# GET STUDENT NUDGE
+# NUDGE
+# ============================================================
+
+@app.route(
+    "/student/nudge",
+    methods=["POST"]
+)
+def student_nudge():
+
+    try:
+
+        data = request.get_json()
+
+
+        if not data:
+
+            return jsonify({
+
+                "status":
+                    "error",
+
+                "message":
+                    "No nudge data received"
+
+            }), 400
+
+
+        student_id = str(
+            data.get(
+                "student_id",
+                ""
+            )
+        ).strip()
+
+
+        if not student_id:
+
+            return jsonify({
+
+                "status":
+                    "error",
+
+                "message":
+                    "student_id is required"
+
+            }), 400
+
+
+        message = str(
+            data.get(
+                "message",
+                "Your instructor suggests focusing on the class."
+            )
+        ).strip()
+
+
+        with data_lock:
+
+            if student_id not in students:
+
+                return jsonify({
+
+                    "status":
+                        "error",
+
+                    "message":
+                        "Student not found"
+
+                }), 404
+
+
+            students[
+                student_id
+            ][
+                "nudge"
+            ] = {
+
+                "message":
+                    message,
+
+                "timestamp":
+                    datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+
+                "read":
+                    False
+            }
+
+
+        return jsonify({
+
+            "status":
+                "success",
+
+            "message":
+                "Nudge sent successfully"
+
+        })
+
+
+    except Exception as e:
+
+        return jsonify({
+
+            "status":
+                "error",
+
+            "message":
+                str(e)
+
+        }), 500
+
+
+# ============================================================
+# GET NUDGE
 # ============================================================
 
 @app.route(
@@ -528,46 +1005,61 @@ def get_student_nudge(student_id):
 
     with data_lock:
 
-        student = students.get(student_id)
+        student = students.get(
+            student_id
+        )
+
 
         if student is None:
 
             return jsonify({
 
-                "status": "error",
+                "status":
+                    "error",
 
                 "message":
                     "Student not found"
 
             }), 404
 
-        nudge = student.get("nudge")
+
+        nudge = student.get(
+            "nudge"
+        )
+
 
         if not nudge:
 
             return jsonify({
 
-                "status": "success",
+                "status":
+                    "success",
 
-                "has_nudge": False,
+                "has_nudge":
+                    False,
 
-                "nudge": None
+                "nudge":
+                    None
 
             })
 
+
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
-            "has_nudge": True,
+            "has_nudge":
+                True,
 
-            "nudge": nudge
+            "nudge":
+                nudge
 
         })
 
 
 # ============================================================
-# MARK NUDGE AS READ
+# MARK NUDGE READ
 # ============================================================
 
 @app.route(
@@ -578,24 +1070,33 @@ def mark_nudge_read(student_id):
 
     with data_lock:
 
-        student = students.get(student_id)
+        student = students.get(
+            student_id
+        )
+
 
         if student is None:
 
             return jsonify({
 
-                "status": "error",
+                "status":
+                    "error",
 
                 "message":
                     "Student not found"
 
             }), 404
 
-        student["nudge"] = None
+
+        student[
+            "nudge"
+        ] = None
+
 
     return jsonify({
 
-        "status": "success",
+        "status":
+            "success",
 
         "message":
             "Nudge marked as read"
@@ -604,7 +1105,7 @@ def mark_nudge_read(student_id):
 
 
 # ============================================================
-# GET LIVE ATTENTION HISTORY
+# HISTORY
 # ============================================================
 
 @app.route(
@@ -615,18 +1116,24 @@ def get_history(student_id):
 
     history = []
 
-    if not os.path.exists(LIVE_DATA_FILE):
+
+    if not os.path.exists(
+        LIVE_DATA_FILE
+    ):
 
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
             "student_id":
                 student_id,
 
-            "history": []
+            "history":
+                []
 
         })
+
 
     try:
 
@@ -637,7 +1144,10 @@ def get_history(student_id):
             encoding="utf-8"
         ) as file:
 
-            reader = csv.DictReader(file)
+            reader = csv.DictReader(
+                file
+            )
+
 
             for row in reader:
 
@@ -648,11 +1158,15 @@ def get_history(student_id):
                     )
                 ).strip() == student_id:
 
-                    history.append(row)
+                    history.append(
+                        row
+                    )
+
 
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
             "student_id":
                 student_id,
@@ -665,11 +1179,13 @@ def get_history(student_id):
 
         })
 
+
     except Exception as e:
 
         return jsonify({
 
-            "status": "error",
+            "status":
+                "error",
 
             "message":
                 str(e)
@@ -678,7 +1194,7 @@ def get_history(student_id):
 
 
 # ============================================================
-# ATTENTION TRANSITION ANALYSIS
+# TRANSITIONS
 # ============================================================
 
 @app.route(
@@ -689,11 +1205,15 @@ def get_transitions(student_id):
 
     history = []
 
-    if not os.path.exists(LIVE_DATA_FILE):
+
+    if not os.path.exists(
+        LIVE_DATA_FILE
+    ):
 
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
             "student_id":
                 student_id,
@@ -701,9 +1221,11 @@ def get_transitions(student_id):
             "total_transitions":
                 0,
 
-            "transitions": {}
+            "transitions":
+                {}
 
         })
+
 
     try:
 
@@ -714,7 +1236,10 @@ def get_transitions(student_id):
             encoding="utf-8"
         ) as file:
 
-            reader = csv.DictReader(file)
+            reader = csv.DictReader(
+                file
+            )
+
 
             for row in reader:
 
@@ -732,15 +1257,28 @@ def get_transitions(student_id):
                         )
                     ).strip().upper()
 
+
                     if status in [
+
                         "HIGH ATTENTION",
+
                         "MODERATE ATTENTION",
-                        "LOW ATTENTION"
+
+                        "LOW ATTENTION",
+
+                        "ATTENTIVE",
+
+                        "PARTLY ENGAGED"
+
                     ]:
 
-                        history.append(status)
+                        history.append(
+                            status
+                        )
+
 
         transition_counts = {}
+
 
         for previous, current in zip(
             history,
@@ -755,37 +1293,43 @@ def get_transitions(student_id):
                     + current
                 )
 
+
                 transition_counts[
                     transition
-                ] = transition_counts.get(
-                    transition,
-                    0
-                ) + 1
+                ] = (
+                    transition_counts.get(
+                        transition,
+                        0
+                    )
+                    + 1
+                )
 
-        total_transitions = sum(
-            transition_counts.values()
-        )
 
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
             "student_id":
                 student_id,
 
             "total_transitions":
-                total_transitions,
+                sum(
+                    transition_counts.values()
+                ),
 
             "transitions":
                 transition_counts
 
         })
 
+
     except Exception as e:
 
         return jsonify({
 
-            "status": "error",
+            "status":
+                "error",
 
             "message":
                 str(e)
@@ -794,7 +1338,7 @@ def get_transitions(student_id):
 
 
 # ============================================================
-# GET CURRENT ACTIVE STUDENT
+# ACTIVE STUDENT
 # ============================================================
 
 @app.route(
@@ -809,18 +1353,20 @@ def get_active_student():
 
             return jsonify({
 
-                "status": "success",
+                "status":
+                    "success",
 
-                "active": False,
+                "active":
+                    False,
 
-                "student": None
+                "student":
+                    None
 
             })
 
+
         active_student = max(
-
             students.values(),
-
             key=lambda student:
                 student.get(
                     "joined_at",
@@ -828,30 +1374,38 @@ def get_active_student():
                 )
         )
 
+
     return jsonify({
 
-        "status": "success",
+        "status":
+            "success",
 
-        "active": True,
+        "active":
+            True,
 
         "student": {
 
             "student_id":
-                active_student["student_id"],
+                active_student[
+                    "student_id"
+                ],
 
             "student_name":
-                active_student["student_name"],
+                active_student[
+                    "student_name"
+                ],
 
             "email":
-                active_student["email"]
-
+                active_student[
+                    "email"
+                ]
         }
 
     })
 
 
 # ============================================================
-# GET ALL STUDENTS
+# ALL STUDENTS
 # ============================================================
 
 @app.route(
@@ -866,9 +1420,11 @@ def get_students():
             students.values()
         )
 
+
     return jsonify({
 
-        "status": "success",
+        "status":
+            "success",
 
         "total_students":
             len(student_list),
@@ -880,7 +1436,7 @@ def get_students():
 
 
 # ============================================================
-# GET ONE STUDENT
+# ONE STUDENT
 # ============================================================
 
 @app.route(
@@ -895,20 +1451,24 @@ def get_student(student_id):
             student_id
         )
 
+
     if student is None:
 
         return jsonify({
 
-            "status": "error",
+            "status":
+                "error",
 
             "message":
                 "Student not found"
 
         }), 404
 
+
     return jsonify({
 
-        "status": "success",
+        "status":
+            "success",
 
         "student":
             student
@@ -917,7 +1477,7 @@ def get_student(student_id):
 
 
 # ============================================================
-# ADMIN DASHBOARD SUMMARY
+# ADMIN DASHBOARD
 # ============================================================
 
 @app.route(
@@ -932,35 +1492,48 @@ def dashboard():
             students.values()
         )
 
+
     total_students = len(
         student_list
     )
+
 
     if total_students == 0:
 
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
-            "total_students": 0,
+            "total_students":
+                0,
 
-            "average_attention": 0,
+            "average_attention":
+                0,
 
-            "high_attention": 0,
+            "high_attention":
+                0,
 
-            "moderate_attention": 0,
+            "moderate_attention":
+                0,
 
-            "low_attention": 0,
+            "low_attention":
+                0,
 
-            "total_alerts": 0,
+            "total_alerts":
+                0,
 
-            "total_distractions": 0,
+            "total_distractions":
+                0,
 
-            "total_transitions": 0,
+            "total_transitions":
+                0,
 
-            "students": []
+            "students":
+                []
 
         })
+
 
     scores = [
 
@@ -975,8 +1548,13 @@ def dashboard():
 
     ]
 
-    average_attention = \
-        sum(scores) / len(scores)
+
+    average_attention = (
+        sum(scores)
+        /
+        len(scores)
+    )
+
 
     high_attention = sum(
 
@@ -990,9 +1568,13 @@ def dashboard():
                 ""
             )
         ).upper()
-        == "HIGH ATTENTION"
+        in [
+            "HIGH ATTENTION",
+            "ATTENTIVE"
+        ]
 
     )
+
 
     moderate_attention = sum(
 
@@ -1006,9 +1588,13 @@ def dashboard():
                 ""
             )
         ).upper()
-        == "MODERATE ATTENTION"
+        in [
+            "MODERATE ATTENTION",
+            "PARTLY ENGAGED"
+        ]
 
     )
+
 
     low_attention = sum(
 
@@ -1026,6 +1612,7 @@ def dashboard():
 
     )
 
+
     total_alerts = sum(
 
         int(
@@ -1037,7 +1624,8 @@ def dashboard():
 
         for s in student_list
 
-    )
+    ]
+
 
     total_distractions = sum(
 
@@ -1050,7 +1638,8 @@ def dashboard():
 
         for s in student_list
 
-    )
+    ]
+
 
     total_transitions = sum(
 
@@ -1063,11 +1652,13 @@ def dashboard():
 
         for s in student_list
 
-    )
+    ]
+
 
     return jsonify({
 
-        "status": "success",
+        "status":
+            "success",
 
         "total_students":
             total_students,
@@ -1103,7 +1694,7 @@ def dashboard():
 
 
 # ============================================================
-# STUDENT LEAVES CLASS
+# STUDENT LEAVE
 # ============================================================
 
 @app.route(
@@ -1116,6 +1707,20 @@ def student_leave():
 
         data = request.get_json()
 
+
+        if not data:
+
+            return jsonify({
+
+                "status":
+                    "error",
+
+                "message":
+                    "No student data received"
+
+            }), 400
+
+
         student_id = str(
             data.get(
                 "student_id",
@@ -1123,16 +1728,19 @@ def student_leave():
             )
         ).strip()
 
+
         if not student_id:
 
             return jsonify({
 
-                "status": "error",
+                "status":
+                    "error",
 
                 "message":
                     "student_id is required"
 
             }), 400
+
 
         with data_lock:
 
@@ -1140,30 +1748,37 @@ def student_leave():
 
                 students[
                     student_id
-                ]["attention_status"] = \
-                    "LEFT CLASS"
+                ][
+                    "attention_status"
+                ] = "LEFT CLASS"
+
 
                 students[
                     student_id
-                ]["last_update"] = \
-                    datetime.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
+                ][
+                    "last_update"
+                ] = datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+
 
         return jsonify({
 
-            "status": "success",
+            "status":
+                "success",
 
             "message":
                 "Student left the class"
 
         })
 
+
     except Exception as e:
 
         return jsonify({
 
-            "status": "error",
+            "status":
+                "error",
 
             "message":
                 str(e)
@@ -1172,7 +1787,7 @@ def student_leave():
 
 
 # ============================================================
-# SERVER START
+# SERVER
 # ============================================================
 
 if __name__ == "__main__":
@@ -1183,10 +1798,8 @@ if __name__ == "__main__":
     print("==========================================")
     print()
 
-    print("Server running on:")
-
     print(
-        f"http://localhost:{PORT}"
+        f"Server running on port {PORT}"
     )
 
     print()
@@ -1201,19 +1814,21 @@ if __name__ == "__main__":
     print("GET  /student/nudge/<student_id>")
     print("POST /student/nudge/<student_id>/read")
     print("POST /student/leave")
+    print("GET  /student/active")
     print("GET  /admin/students")
     print("GET  /admin/student/<student_id>")
     print("GET  /admin/dashboard")
     print("GET  /admin/history/<student_id>")
     print("GET  /admin/transitions/<student_id>")
-
     print()
 
-    print("Ready for multiple students.")
+    print(
+        "Ready for multiple students."
+    )
 
-    print("==========================================")
-    print()
-
+    print(
+        "=========================================="
+    )
 
     app.run(
         host=HOST,
